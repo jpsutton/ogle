@@ -8,6 +8,7 @@ cd "$(dirname "$0")/../.."
 . scripts/ci/rust.sh
 
 version=$(scripts/ci/version.sh)
+# shellcheck disable=SC1091
 . /etc/os-release
 arch=$(dpkg --print-architecture)
 # e.g. ogle_0.1.0-1~debian12_amd64.deb: the ~ suffix keeps one file per release apart.
@@ -26,7 +27,7 @@ Package: ogle
 Version: $debver
 Architecture: $arch
 Maintainer: Jared Sutton <jpsutton@protonmail.com>
-Depends: libc6 (>= $glibc)
+Depends: libc6 (>= $glibc), libgcc-s1
 Section: admin
 Priority: optional
 Homepage: https://github.com/jpsutton/ogle

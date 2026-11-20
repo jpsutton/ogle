@@ -6,7 +6,10 @@
 set -euo pipefail
 
 if command -v dnf >/dev/null; then
-  dnf -y -q install gcc curl ca-certificates rpm-build >/dev/null
+  # Rocky ships curl-minimal, which conflicts with the full curl package.
+  pkgs=(gcc ca-certificates rpm-build)
+  command -v curl >/dev/null || pkgs+=(curl)
+  dnf -y -q install "${pkgs[@]}" >/dev/null
 elif command -v apt-get >/dev/null; then
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq >/dev/null
