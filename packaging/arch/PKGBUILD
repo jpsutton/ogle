@@ -1,0 +1,47 @@
+# Maintainer: Jared Sutton <jpsutton@protonmail.com>
+#
+# Builds from the working tree this PKGBUILD lives in:
+#   cd packaging/arch && makepkg -si
+
+pkgname=ogle
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Resource-efficient terminal system monitor inspired by Glances"
+arch=('x86_64' 'aarch64')
+url="https://github.com/jpsutton/ogle"
+license=('LGPL-3.0-or-later')
+depends=('glibc' 'gcc-libs')
+makedepends=('cargo')
+options=(!debug !lto)
+source=()
+
+_tree="$startdir/../.."
+
+prepare() {
+  rm -rf "$pkgname"
+  mkdir "$pkgname"
+  cp -a "$_tree"/{Cargo.toml,Cargo.lock,src,README.md,LICENSE} "$pkgname/"
+  cd "$pkgname"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/^host: //p')"
+}
+
+build() {
+  cd "$pkgname"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release
+}
+
+check() {
+  cd "$pkgname"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo test --frozen --release
+}
+
+package() {
+  cd "$pkgname"
+  install -Dm755 target/release/ogle "$pkgdir/usr/bin/ogle"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
