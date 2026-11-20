@@ -1,4 +1,4 @@
-//! Modules (stats collectors + panels). Contract shared by all module agents and the app.
+//! Modules (stats collectors + panels) and the interface shared by every module and the app.
 //!
 //! Each `modules/<name>.rs` owns its state type and a `render` function:
 //!

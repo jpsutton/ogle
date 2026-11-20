@@ -1,6 +1,5 @@
 //! Shared number formatting and history helpers (02-system-modules.md SYS-001..SYS-00x).
 //!
-//! OWNER: system-modules agent fills `todo!()` bodies. Signatures are a contract.
 //! All formatting returns stack-allocated `Small` strings: no heap allocation per cell.
 
 use std::fmt;
@@ -61,14 +60,52 @@ pub enum MinSym {
 /// SYS-001..SYS-004 auto-unit: binary steps, carry rule, `low_precision` variant.
 /// `None` input is handled by callers (they print `-`).
 pub fn auto_unit(n: u64, low_precision: bool, min: MinSym) -> Small {
-    let _ = (n, low_precision, min);
-    todo!()
+    auto_core(n as f64, true, low_precision, min)
 }
 
 /// Same for float inputs (rates).
 pub fn auto_unit_f(n: f64, low_precision: bool, min: MinSym) -> Small {
-    let _ = (n, low_precision, min);
-    todo!()
+    auto_core(n, false, low_precision, min)
+}
+
+const SYMS: [char; 8] = ['K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
+
+fn auto_core(n: f64, is_int: bool, low: bool, min: MinSym) -> Small {
+    // SYS-002 step 2 (negative and NaN inputs are clamped to 0, SYS-005).
+    if !(n > 0.0) {
+        return crate::small!("0");
+    }
+    let kmin: usize = if min == MinSym::M { 2 } else { 1 };
+    // SYS-002 step 3: first symbol from the largest down where v >= 1.
+    let mut k = SYMS.len();
+    while k >= kmin && n / 1024f64.powi(k as i32) < 1.0 {
+        k -= 1;
+    }
+    if k < kmin {
+        // SYS-002 step 4.
+        return if is_int || n.fract() == 0.0 { crate::small!("{}", n as u64) } else { crate::small!("{:.2}", n) };
+    }
+    loop {
+        let v = n / 1024f64.powi(k as i32);
+        let sym = SYMS[k - 1];
+        // SYS-002 step 5.
+        let mut d: usize = if v < 9.995 { 2 } else if v < 99.95 { 1 } else { 0 };
+        if sym == 'K' {
+            d = 0;
+        }
+        if low {
+            d = if sym == 'K' || sym == 'M' { 0 } else { d.min(1) };
+        }
+        let mut s = crate::small!("{:.*}", d, v);
+        // SYS-002 step 7: carry when the printed integer part reaches 1024.
+        let int_part = s.as_str().split('.').next().and_then(|t| t.parse::<u64>().ok()).unwrap_or(0);
+        if int_part >= 1024 && k < SYMS.len() {
+            k += 1;
+            continue;
+        }
+        let _ = fmt::Write::write_char(&mut s, sym);
+        return s;
+    }
 }
 
 /// Fixed-size ring buffer for history (GEN-008). Allocated once.
@@ -123,12 +160,94 @@ pub enum Trend {
 
 /// SYS trend rule: needs 30 samples; mean(newest 15) - mean(oldest 15) vs threshold 1.
 pub fn trend(r: &Ring) -> Trend {
-    let _ = r;
-    todo!()
+    // SYS-008
+    let n = r.len();
+    if n < 30 {
+        return Trend::Unknown;
+    }
+    let base = n - 30;
+    let (mut old, mut new) = (0.0f64, 0.0f64);
+    for i in 0..15 {
+        old += r.get(base + i) as f64;
+        new += r.get(base + 15 + i) as f64;
+    }
+    let t = (new - old) / 15.0;
+    // SYS-009
+    if t > 1.0 {
+        Trend::Up
+    } else if t < -1.0 {
+        Trend::Down
+    } else {
+        Trend::Flat
+    }
 }
 
 /// Glyph for a trend (Unicode or ASCII per GEN-017).
 pub fn trend_glyph(t: Trend, ascii: bool) -> &'static str {
-    let _ = (t, ascii);
-    todo!()
+    // SYS-009, GEN-017
+    match (t, ascii) {
+        (Trend::Unknown, _) => " ",
+        (Trend::Up, false) => "\u{2191}",
+        (Trend::Up, true) => "^",
+        (Trend::Down, false) => "\u{2193}",
+        (Trend::Down, true) => "v",
+        (Trend::Flat, _) => "-",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // SYS-004 normative vectors.
+    const V: [(u64, &str, &str); 11] = [
+        (0, "0", "0"),
+        (1000, "1000", "1000"),
+        (1024, "1K", "1K"),
+        (613421788, "585M", "585M"),
+        (1073741824, "1.00G", "1.0G"),
+        (1181116006, "1.10G", "1.1G"),
+        (5307033647, "4.94G", "4.9G"),
+        (44968414685, "41.9G", "41.9G"),
+        (838471403472, "781G", "781G"),
+        (9683209690677, "8.81T", "8.8T"),
+        (1048575, "1.00M", "1M"),
+    ];
+
+    #[test]
+    fn auto_unit_vectors() {
+        for (n, hi, lo) in V {
+            assert_eq!(auto_unit(n, false, MinSym::K).as_str(), hi, "n={n}");
+            assert_eq!(auto_unit(n, true, MinSym::K).as_str(), lo, "n={n} low");
+            assert_eq!(auto_unit_f(n as f64, false, MinSym::K).as_str(), hi, "f n={n}");
+        }
+    }
+
+    #[test]
+    fn auto_unit_misc() {
+        assert_eq!(auto_unit_f(12.5, false, MinSym::K).as_str(), "12.50");
+        assert_eq!(auto_unit(500_000, false, MinSym::M).as_str(), "500000");
+        assert_eq!(auto_unit(1023 * 1024 + 1000, false, MinSym::K).as_str(), "1.00M");
+    }
+
+    #[test]
+    fn trend_rule() {
+        let mut r = Ring::new(30);
+        for _ in 0..29 {
+            r.push(10.0);
+        }
+        assert_eq!(trend(&r), Trend::Unknown);
+        r.push(10.0);
+        assert_eq!(trend(&r), Trend::Flat);
+        for _ in 0..15 {
+            r.push(20.0);
+        }
+        assert_eq!(trend(&r), Trend::Up);
+        for _ in 0..30 {
+            r.push(0.0);
+        }
+        assert_eq!(trend(&r), Trend::Flat);
+        assert_eq!(trend_glyph(Trend::Down, true), "v");
+        assert_eq!(trend_glyph(Trend::Unknown, false), " ");
+    }
 }

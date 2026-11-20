@@ -227,7 +227,7 @@ pub struct Proc {
     /// Short name (comm / p_comm / image name). Reuse the String allocation.
     pub name: String,
     pub uid: Option<u32>,
-    /// One of R S D Z T I W P K U (PLT-150).
+    /// One of R S D Z T I W P K U, or L (FreeBSD SLOCK) (PLT-150). Unknown letters render as-is.
     pub status: u8,
     pub nice: Option<i32>,
     /// Windows priority class label: "RT" "Hi" "AN" "No" "BN" "Lo".
@@ -290,7 +290,8 @@ pub trait Platform {
     fn net_interfaces(&mut self, want_addrs: bool, out: &mut Vec<NetIf>);
     fn disk_io(&mut self, out: &mut Vec<DiskIo>);
     fn filesystems(&mut self, out: &mut Vec<Mount>);
-    /// May block (network fs). Callers run it via `FsWorker` (PLT-010), never on the UI thread.
+    /// May block on network file systems (PLT-010). The fs module calls it inline only for
+    /// local physical mounts and routes every other mount through its worker thread.
     fn fs_usage(mount_point: &str) -> Option<FsUsage>
     where
         Self: Sized;
@@ -321,6 +322,9 @@ pub use linux::{new, Sys};
 mod macos;
 #[cfg(target_os = "macos")]
 pub use macos::{new, Sys};
+
+#[cfg(any(target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))]
+mod bsd_common;
 
 #[cfg(target_os = "freebsd")]
 mod freebsd;
