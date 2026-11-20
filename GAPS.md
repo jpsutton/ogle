@@ -6,14 +6,16 @@ implementation. Remove an entry once it is fixed or verified. Spec references po
 
 ## 1. Build and verification status
 
-- **Never compiled.** Every source file was written and then desk-reviewed against the
-  contract files and the local `libc` 0.2.191 and `windows-sys` 0.59 sources. No `cargo
-  build`, `cargo test` or `cargo check` has run yet. Expect a round of compile fixes.
-- **Non-Linux targets** can only be checked with `cargo check --target <triple>` on a
-  machine that has the target's std installed (macOS, FreeBSD, OpenBSD, NetBSD, Windows).
-- **Performance budgets are unmeasured.** None of the PERF budgets in
-  `spec/07-performance.md` (RSS, CPU %, first-frame time, bytes per frame, syscalls per
-  cycle) has been checked against a running binary.
+- **Linux builds and runs.** `cargo build --release` succeeds with 7 dead-code warnings
+  (unused interface fields such as `CpuTopology::physical`, `LoadAvg::emulated`,
+  `Memory::shared`). `cargo test` passes 56 tests on Linux. Tests inside the macOS, BSD and
+  Windows backends have not run.
+- **Non-Linux targets have never been compiled.** Check them with
+  `cargo check --target <triple>` on a machine that has the target's std installed.
+- **Performance measured on Linux only.** First measurement (32 CPUs, ~750 processes,
+  200x50 pty, 2 s refresh): 0.47% of one core, 4.25 MiB RSS, 816 read syscalls and 1 write
+  per cycle, 913 terminal bytes per frame, first output after 2 ms. The larger PERF harness
+  (1000/5000/20000-process workloads, churn test, 1-hour run) has not been run.
 - **Benchmark harness is not in the repo.** The Glances/htop/top baseline scripts and raw
   output live in `/tmp/ogle-bench/`, which is lost on reboot. Copy them into the repo
   (for example `bench/`) before relying on them.
@@ -141,6 +143,8 @@ implementation. Remove an entry once it is fixed or verified. Spec references po
 ### System modules
 
 - **Per-CPU times** are collected only in per-CPU mode (`1`), following SYS-061.
+  After pressing `1`, the per-CPU cells show `?%` until the next cycle, because a
+  percentage needs two samples.
 - **`{linux_distro}` in `[system] info_format`** silently falls back to the default
   template when `/etc/os-release` is missing.
 - **System info** builds new Strings each time it refreshes (every 60 s by default).

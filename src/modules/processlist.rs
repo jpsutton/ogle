@@ -193,7 +193,7 @@ fn rate_str(v: f64) -> Small {
     } else if v == 0.0 {
         crate::small!("0") // PROC-048
     } else {
-        auto_unit_f(v, true, MinSym::None)
+        auto_unit_f(v.round(), true, MinSym::None)
     }
 }
 

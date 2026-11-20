@@ -602,9 +602,9 @@ fn eval_net(alerts: &mut Alerts, st: Option<NetStat>, rate: Option<f64>, speed: 
 /// IO-034: bits (x8, suffix `b`) or bytes.
 fn rate_text(v: f64, bytes: bool) -> Small {
     if bytes {
-        auto_unit_f(v, false, MinSym::None)
+        auto_unit_f(v.round(), false, MinSym::None)
     } else {
-        let s = auto_unit_f(v * 8.0, false, MinSym::None);
+        let s = auto_unit_f((v * 8.0).round(), false, MinSym::None);
         crate::small!("{}b", s)
     }
 }

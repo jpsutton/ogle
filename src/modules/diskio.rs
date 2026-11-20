@@ -278,7 +278,7 @@ pub fn render(w: &World, area: Area, out: &mut Panel) -> Align {
                 Some(v) => {
                     let s = match mode {
                         DiskioMode::Latency => latency_text(v),
-                        _ => auto_unit_f(v, false, MinSym::None),
+                        _ => auto_unit_f(v.round(), false, MinSym::None),
                     };
                     cell(out, it.roles[k], s.as_str(), 7);
                 }
