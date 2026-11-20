@@ -10,15 +10,15 @@ implementation. Remove an entry once it is fixed or verified. Spec references po
   (unused interface fields such as `CpuTopology::physical`, `LoadAvg::emulated`,
   `Memory::shared`). `cargo test` passes 56 tests on Linux. Tests inside the macOS, BSD and
   Windows backends have not run.
-- **Non-Linux targets have never been compiled.** Check them with
-  `cargo check --target <triple>` on a machine that has the target's std installed.
+- **Non-Linux targets compile but are untested.** CI (`build.yml`) builds macOS (universal
+  binary) and Windows, and runs `cargo check` for FreeBSD and NetBSD; all pass. None of them
+  has been run on a real system. OpenBSD is not checked in CI (no rustup target).
 - **Performance measured on Linux only.** First measurement (32 CPUs, ~750 processes,
   200x50 pty, 2 s refresh): 0.47% of one core, 4.25 MiB RSS, 816 read syscalls and 1 write
   per cycle, 913 terminal bytes per frame, first output after 2 ms. The larger PERF harness
   (1000/5000/20000-process workloads, churn test, 1-hour run) has not been run.
 - **Benchmark harness is not in the repo.** The Glances/htop/top baseline scripts and raw
-  output live in `/tmp/ogle-bench/`, which is lost on reboot. Copy them into the repo
-  (for example `bench/`) before relying on them.
+  output lived in `/tmp/ogle-bench/`, which is lost on reboot.
 
 ## 2. Platform interface (`src/platform/mod.rs`)
 
